@@ -83,24 +83,25 @@
 <script>
 
     // --- 1. CONFIGURATION ---
-    const GOOGLE_SCRIPT_URL = 'TU_URL_DEL_SCRIPT_DE_GOOGLE_AQUI'; 
+    // PASTE YOUR GOOGLE SCRIPT URL HERE
+    const GOOGLE_SCRIPT_URL = 'YOUR_GOOGLE_SCRIPT_URL_HERE'; 
     
-    // Prolific ID Capture
     const urlParams = new URLSearchParams(window.location.search);
     const subject_id = urlParams.get('PROLIFIC_PID') || 'TEST_' + Math.floor(Math.random()*100000);
 
     const jsPsych = initJsPsych({
         on_finish: function() {
-            window.location = "https://app.prolific.co/submissions/complete?cc=TU_CODIGO_PROLIFIC";
+            // PASTE YOUR PROLIFIC COMPLETION URL HERE
+            window.location = "https://app.prolific.co/submissions/complete?cc=YOUR_CODE";
         }
     });
 
     let timeline = [];
-    let user_data = {}; // Holds demographics
-    let total_credits = 100; // Starting currency (Cognitive Bandwidth)
+    let user_data = {}; 
+    let total_score = 1000; // STARTING SCORE (High buffer)
 
     // ==========================================
-    // PHASE 1: ETHICS & CONSENT (Strict & Clear)
+    // PHASE 1: INFORMED CONSENT
     // ==========================================
     
     const consent_trial = {
@@ -108,37 +109,28 @@
         stimulus: `
             <div class="consent-card">
                 <h1>Informed Consent Form</h1>
-                <p>You are invited to participate in a study on <b>Artificial Intelligence in High-Stakes Decision Making</b> conducted by the CONFIIA Research Group.</p>
+                <p>You are invited to participate in the CONFIIA study regarding <b>Artificial Intelligence and Medical Decision Making</b>.</p>
                 
                 <div class="legal-box">
-                    <strong>🔒 Anonymity & Privacy:</strong><br>
-                    This study is completely anonymous. We do not collect IP addresses or personally identifiable information. Your data is linked only to your Prolific ID.
+                    <strong>🔒 Anonymity:</strong> We do not collect IP addresses or PII. Only your Prolific ID is recorded.<br>
+                    <strong>🛡️ Zero Risk:</strong> This is a standard web-based simulation.<br>
+                    <strong>⚖️ Open Data:</strong> Aggregated data will be used for academic research.
                 </div>
 
-                <div class="legal-box">
-                    <strong>🛡️ Risk Statement:</strong><br>
-                    There are no known risks associated with this study. It involves a computer-based decision-making game.
-                </div>
-
-                <div class="legal-box">
-                    <strong>⚖️ Data Usage:</strong><br>
-                    Aggregated data will be hosted on open science repositories (GitHub/OSF) for academic transparency.
-                </div>
-
-                <p>By clicking "I Agree", you confirm that you are 18+ years old and voluntarily agree to participate.</p>
+                <p>By clicking "I Agree", you confirm that you are 18+ years old and participate voluntarily.</p>
             </div>
         `,
-        choices: ['I DO NOT Consent', 'I AGREE to Participate'],
+        choices: ['I Decline', 'I Agree to Participate'],
         on_finish: function(data){
             if(data.response === 0){
-                jsPsych.endExperiment("You chose not to participate. Please close this window.");
+                jsPsych.endExperiment("You chose not to participate. You may close this window.");
             }
         }
     };
     timeline.push(consent_trial);
 
     // ==========================================
-    // PHASE 2: DEMOGRAPHICS (Mandatory Section)
+    // PHASE 2: DEMOGRAPHICS
     // ==========================================
     
     const demographics_trial = {
@@ -146,7 +138,6 @@
         html: `
             <div class="consent-card">
                 <h1>Participant Profile</h1>
-                <p>Please complete the following statistical information.</p>
                 
                 <div style="margin-bottom: 20px;">
                     <label>Age:</label>
@@ -154,12 +145,12 @@
                 </div>
 
                 <div style="margin-bottom: 20px;">
-                    <label>Gender:</label>
+                    <label>Gender Identity:</label>
                     <select name="gender" required>
                         <option value="" disabled selected>Select...</option>
                         <option value="Female">Female</option>
                         <option value="Male">Male</option>
-                        <option value="Non-binary">Non-binary / Other</option>
+                        <option value="Non_binary">Non-binary / Other</option>
                         <option value="Prefer_not_to_say">Prefer not to say</option>
                     </select>
                 </div>
@@ -175,7 +166,7 @@
                 </div>
             </div>
         `,
-        button_label: "Save Profile & Enter Simulation",
+        button_label: "Save Profile & Enter",
         on_finish: function(data){
             user_data = data.response;
         }
@@ -190,55 +181,57 @@
         type: jsPsychInstructions,
         pages: [
             `<div class="game-card">
-                <h1>Simulation Briefing</h1>
-                <p>You are a Chief Diagnostician. You have limited <b>Cognitive Energy (${total_credits} Units)</b>.</p>
-                <p>An advanced AI will present 20 patient cases.</p>
+                <h1>Mission Briefing</h1>
+                <p>You are the Chief Diagnostician. You begin with <b>1000 Credit Points</b>.</p>
+                <p>An advanced AI will present 20 medical cases to you.</p>
             </div>`,
             `<div class="game-card">
-                <h3>The Mechanic: Coupling vs. Decoupling</h3>
-                <p>For each case, the AI gives a recommendation and a <b>Confidence Score</b>.</p>
+                <h3>Scoring Rules (Attention Economy)</h3>
                 <ul>
-                    <li><b>Option A: SYNC (Cost: 0)</b><br>Accept the AI's judgment immediately. Efficient, but risky if AI is wrong.</li>
-                    <li><b>Option B: AUDIT (Cost: 5)</b><br>Spend energy to verify the raw data manually. 100% Safe, but expensive.</li>
+                    <li><b>Correct Diagnosis:</b> You GAIN <span style="color:#00ffcc">+100 Points</span>.</li>
+                    <li><b>Incorrect Diagnosis:</b> You LOSE <span style="color:#ff4444">-200 Points</span> (Severe Penalty).</li>
                 </ul>
-                <p><b>Goal:</b> Finish with maximum Energy. <br><i>Penalty for wrong diagnosis: -20 Energy.</i></p>
+                <hr style="border-color:#444">
+                <h3>Your Strategy Options:</h3>
+                <ul>
+                    <li><b>Option A: SYNC (Cost: 0)</b><br>Accept the AI's judgment instantly. Fast and free, but risky if the AI is wrong.</li>
+                    <li><b>Option B: AUDIT (Cost: -30)</b><br>Invest resources to verify the raw data. Expensive, but guarantees you catch AI errors.</li>
+                </ul>
             </div>`
         ],
         show_clickable_nav: true,
-        allow_backward: false
+        button_label_next: "Next >",
+        button_label_previous: "< Back"
     };
     timeline.push(instructions);
 
     // GAME VARIABLES
     const trials = 20;
-    // The "Twist": AI is calibrated first, then hallucinates confidently later
-    // Cases 1-10: AI Confidence matches Reality.
-    // Cases 11-20: AI is "Overconfident" (High confidence, but wrong).
     
     for(let i=0; i<trials; i++){
         
-        // Logic Setup
-        let is_second_half = (i >= 10);
-        let ai_confidence = Math.floor(Math.random() * (99 - 85) + 85); // High confidence 85-99%
+        // AI Logic (Calibration vs Hallucination)
+        // Cases 1-8: AI is reliable. Cases 9-20: AI starts failing but stays confident.
+        let is_difficult_phase = (i >= 8);
+        let ai_confidence = Math.floor(Math.random() * (99 - 88) + 88); // Always high confidence (88-99%)
         
-        // Determine Truth
+        // Does the AI tell the truth or hallucinate?
         let ai_is_correct = true; 
-        if(is_second_half && Math.random() > 0.4) { 
-            ai_is_correct = false; // AI hallucinates frequently in second half
-        } else if (!is_second_half && Math.random() > 0.9) {
-             ai_is_correct = false; // Rare errors in first half
+        if(is_difficult_phase && Math.random() > 0.5) { 
+            ai_is_correct = false; // 50% failure rate in difficult phase
+        } else if (!is_difficult_phase && Math.random() > 0.9) {
+             ai_is_correct = false; // Rare failure in easy phase
         }
 
-        // Visual for Confidence Bar
         let bar_color = (ai_confidence > 90) ? "#00ffcc" : "#ffcc00";
         
-        // TRIAL START
+        // 1. DECISION SCREEN
         let trial = {
             type: jsPsychHtmlButtonResponse,
             stimulus: function(){
                 return `
                     <div class="game-card" style="text-align:center;">
-                        <h4 style="color:#555;">CASE ${i+1} / ${trials} | ENERGY: ${total_credits}</h4>
+                        <h4 style="color:#777;">CASE ${i+1} / ${trials} | CURRENT CREDITS: <span style="color:white">${total_score}</span></h4>
                         
                         <div class="ai-readout">
                             <p style="margin:0; color:#aaa; font-size:0.8em;">NEURAL NET OUTPUT:</p>
@@ -252,64 +245,98 @@
                             </div>
                         </div>
                         
-                        <p>How do you proceed?</p>
+                        <p>Choose your strategy:</p>
                     </div>
                 `;
             },
-            choices: ['SYNC (Trust AI)', 'AUDIT (Verify Data - Cost 5)'],
+            choices: ['SYNC (Trust 0 pts)', 'AUDIT (Verify -30 pts)'],
+            data: { 
+                ai_correctness: ai_is_correct,
+                ai_confidence: ai_confidence,
+                phase: is_difficult_phase ? 'high_risk' : 'low_risk'
+            },
             on_finish: function(data){
+                // INTERNAL CALCULATION (Saved but not displayed until next screen)
                 let choice = data.response; // 0 = Sync, 1 = Audit
-                let outcome_score = 0;
-                let message = "";
+                let round_change = 0;
+                let outcome_type = "";
 
                 if(choice === 1) { // AUDIT
-                    total_credits -= 5; // Cost
+                    round_change -= 30; // Fixed Cost
                     if(ai_is_correct) {
-                        message = "Audit revealed AI was Correct. You lost time (-5) but ensured safety.";
+                        // AI was right, you wasted money checking, but you get the Correct reward
+                        round_change += 100;
+                        outcome_type = "safe_waste"; 
                     } else {
-                        message = "Audit CAUGHT an error! AI was hallucinating. Crisis averted.";
-                        // No penalty for error because you caught it
+                        // AI failed, but Audit saved you. You get the Correct reward.
+                        round_change += 100;
+                        outcome_type = "good_save";
                     }
                 } else { // SYNC
+                    // Cost 0
                     if(ai_is_correct) {
-                        message = "Synergy Successful. AI was right. No energy cost.";
+                        round_change += 100; // Pure profit
+                        outcome_type = "efficient_sync";
                     } else {
-                        total_credits -= 20; // Penalty
-                        message = "CRITICAL FAILURE. AI hallucinated and you trusted it. Patient harmed (-20 Energy).";
+                        round_change -= 200; // MASSIVE PENALTY
+                        outcome_type = "critical_fail";
                     }
                 }
                 
-                // Save data
-                data.final_energy = total_credits;
-                data.ai_correctness = ai_is_correct;
-                data.ai_confidence = ai_confidence;
+                // Store round data
+                data.round_points = round_change;
+                data.outcome_type = outcome_type;
             }
         };
 
-        // FEEDBACK
+        // 2. FEEDBACK SCREEN (Update Visible Score Here)
         let feedback = {
             type: jsPsychHtmlButtonResponse,
             stimulus: function(){
-                let last_data = jsPsych.data.get().last(1).values()[0];
+                // Retrieve data from the immediate last trial
+                let last_trial = jsPsych.data.get().last(1).values()[0];
+                let points = last_trial.round_points;
+                let type = last_trial.outcome_type;
+                
+                // UPDATE GLOBAL SCORE
+                total_score += points;
+
+                // Dynamic Messages
+                let title = "";
                 let msg = "";
-                
-                // Reconstruct message logic for display
-                let choice = last_data.response;
-                let correct = last_data.ai_correctness;
-                
-                if(choice === 1) msg = correct ? "<span style='color:#f1c40f'>SAFE BUT COSTLY.</span> AI was right." : "<span style='color:#2ecc71'>GOOD CATCH!</span> AI was wrong.";
-                else msg = correct ? "<span style='color:#2ecc71'>EFFICIENT.</span> AI was right." : "<span style='color:#e74c3c'>DANGEROUS ERROR.</span> AI was wrong.";
+                let color = "";
+
+                if(points > 0) {
+                    color = "#00ffcc"; // Neon Green
+                    title = "SUCCESS";
+                    if(type === "efficient_sync") msg = "The AI was correct. Perfect synchronization.";
+                    if(type === "safe_waste") msg = "The AI was correct. You spent credits auditing, but the patient is safe.";
+                    if(type === "good_save") msg = "ALERT DETECTED! The AI was hallucinating. Your audit prevented a disaster.";
+                } else {
+                    color = "#ff4444"; // Red
+                    title = "CRITICAL FAILURE";
+                    msg = "The AI was wrong and you trusted it blindly. The patient suffered harm.";
+                }
 
                 return `
-                    <div class="game-card" style="text-align:center;">
-                        <h1>RESULT</h1>
-                        <h3>${msg}</h3>
-                        <p style="font-size:2em; margin:20px;">Energy: ${total_credits}</p>
+                    <div class="game-card" style="text-align:center; border-top: 5px solid ${color}">
+                        <h1 style="color:${color}">${title}</h1>
+                        <p style="font-size:1.2em">${msg}</p>
+                        
+                        <div style="background:#111; padding:20px; margin:20px; border-radius:8px; border:1px solid #333">
+                            <span style="color:#888">Round Result:</span> 
+                            <span style="font-size:1.5em; font-weight:bold; color:${color}">
+                                ${points > 0 ? '+' : ''}${points}
+                            </span>
+                            <br>
+                            <span style="color:#888">Total Credits:</span> 
+                            <span style="font-size:2em; font-weight:bold; color:white">${total_score}</span>
+                        </div>
                     </div>
                 `;
             },
-            choices: ['Next Case'],
-            trial_duration: 2000
+            choices: ['Next Case >'],
+            trial_duration: 3000 
         };
 
         timeline.push(trial);
@@ -330,7 +357,7 @@
                 age: user_data.age,
                 gender: user_data.gender,
                 education: user_data.education,
-                final_score: total_credits,
+                final_score: total_score,
                 timestamp: new Date().toISOString()
             };
 
@@ -344,13 +371,19 @@
     
     const end_screen = {
         type: jsPsychHtmlButtonResponse,
-        stimulus: `<div class="game-card"><h1>Simulation Complete</h1><p>Thank you for your contribution to CONFIIA.</p></div>`,
-        choices: ['Close']
+        stimulus: `
+            <div class="game-card" style="text-align:center">
+                <h1 style="color:#00ffcc">Simulation Complete</h1>
+                <p>Thank you for your contribution to the CONFIIA project.</p>
+                <p style="font-size:2em; margin:20px;">Final Score: ${total_score}</p>
+                <p style="color:#777">You may close this tab.</p>
+            </div>
+        `,
+        choices: ['Finish']
     };
     timeline.push(end_screen);
 
     jsPsych.run(timeline);
 
 </script>
-</html>
 </html>
