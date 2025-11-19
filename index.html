@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CONFIIA: Evolutionary Trust Study</title>
+    <script src="https://unpkg.com/jspsych@7.3.3"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.2"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-instructions@1.1.3"></script>
+    <link href="https://unpkg.com/jspsych@7.3.3/css/jspsych.css" rel="stylesheet" type="text/css" />
+    <style>
+        .leaderboard { background-color: #f0f8ff; padding: 15px; border-radius: 8px; border: 1px solid #ccc; margin-bottom: 20px; }
+        .strategy-card { display: inline-block; width: 250px; padding: 15px; margin: 10px; border: 2px solid #444; cursor: pointer; }
+        .warning { color: red; font-weight: bold; }
+    </style>
+</head>
+<body></body>
+<script>
+
+    // --- SETUP ---
+    const GOOGLE_SCRIPT_URL = 'TU_URL_DEL_SCRIPT_DE_GOOGLE_AQUI';
+    const subject_id = new URLSearchParams(window.location.search).get('PROLIFIC_PID') || 'TEST_' + Math.floor(Math.random()*1000);
+
+    const jsPsych = initJsPsych({
+        on_finish: function() {
+            window.location = "https://app.prolific.co/submissions/complete?cc=CODE";
+        }
+    });
+
+    let timeline = [];
+    let total_score = 0;
+    let ai_reliability = 0.95; // Starts high
+    let generations = 5;
+
+    // --- INSTRUCTIONS ---
+    timeline.push({
+        type: jsPsychInstructions,
+        pages: [
+            "<h3>The Medical Evolution Game</h3><p>Welcome to the University Hospital Simulation.</p>",
+            "<p>You are competing against 3 other (simulated) doctors for the 'Best Performance' bonus.</p>",
+            "<p>Each 'Year' (round), you must choose a strategy for using the new Diagnostic AI System.</p>",
+            "<p><b>Warning:</b> The AI's performance depends on how many doctors are auditing it. If everyone blindly trusts it, errors may go unnoticed (The 'Free-Rider' Problem).</p>"
+        ],
+        show_clickable_nav: true
+    });
+
+    // --- GAME LOOP ---
+    
+    // Define fictitious peers behavior (Evolutionary dynamics)
+    // Round 1: Peers are mixed. Round 3: Peers shift to the "winning" strategy.
+    const peer_strategies = [
+        { text: "Dr. A: Traditionalist (Safe)", score: 50 },
+        { text: "Dr. B: Blind Adopter (Risky)", score: 80 }, // Winning initially
+        { text: "Dr. C: Auditor (Balanced)", score: 60 }
+    ];
+
+    for (let gen = 1; gen <= generations; gen++) {
+
+        // 1. Social Information Display (The Leaderboard)
+        let leaderboard_trial = {
+            type: jsPsychHtmlButtonResponse,
+            stimulus: function() {
+                // Dynamic change: As rounds progress, if player blindly trusts, AI degrades
+                let ai_status = (ai_reliability > 0.8) ? "<span style='color:green'>STABLE</span>" : "<span style='color:red'>UNSTABLE (Drift detected)</span>";
+                
+                return `
+                    <h2>Year ${gen} of ${generations}</h2>
+                    <div class="leaderboard">
+                        <h4>Last Year's Hospital Report:</h4>
+                        <p>${peer_strategies[0].text} - Score: ${peer_strategies[0].score}</p>
+                        <p>${peer_strategies[1].text} - Score: ${peer_strategies[1].score}</p>
+                        <p>${peer_strategies[2].text} - Score: ${peer_strategies[2].score}</p>
+                    </div>
+                    <p>Current AI System Status: <b>${ai_status}</b></p>
+                    <p>Choose your strategy for this year:</p>
+                `;
+            },
+            choices: ['Traditionalist (Ignore AI)', 'Skeptical Auditor (Check AI)', 'Blind Adopter (Trust AI)'],
+            data: { task: 'strategy_selection', generation: gen }
+        };
+
+        // 2. Outcome Calculation
+        let feedback_trial = {
+            type: jsPsychHtmlButtonResponse,
+            stimulus: function() {
+                let choice_idx = jsPsych.data.get().last(1).values()[0].response;
+                let choice_name = ['Traditionalist', 'Auditor', 'Blind Adopter'][choice_idx];
+                
+                let round_points = 0;
+                let message = "";
+
+                // Game Theory Payoffs
+                if (choice_idx === 0) { // Traditionalist
+                    round_points = 50;
+                    message = "You relied on manual diagnosis. Slow but steady.";
+                } else if (choice_idx === 1) { // Auditor
+                    round_points = 70;
+                    message = "You used AI but verified it. Good accuracy, moderate speed.";
+                    // Contributing to the public good: AI reliability stays high
+                    ai_reliability = Math.min(1.0, ai_reliability + 0.05);
+                } else { // Blind Adopter
+                    // High risk!
+                    let crash = Math.random() > ai_reliability;
+                    if (crash) {
+                        round_points = 10; // Catastrophe
+                        message = "DISASTER! The AI made a subtle error you didn't check. Patient harm occurred.";
+                    } else {
+                        round_points = 100; // Jackpot
+                        message = "The AI was perfect. You processed patients at record speed!";
+                    }
+                    // Degrading the public good
+                    ai_reliability -= 0.15; 
+                }
+
+                total_score += round_points;
+
+                // Update fake peers for next round to simulate social contagion
+                // If player chose Blind Adopter and won, peers might copy next round
+                if(choice_idx === 2 && round_points === 100) {
+                    peer_strategies[0].text = "Dr. A: Switched to Blind Adopter";
+                    peer_strategies[0].score = 95; 
+                } else if (choice_idx === 2 && round_points === 10) {
+                    peer_strategies[0].text = "Dr. A: Switched to Auditor";
+                    peer_strategies[0].score = 65;
+                }
+
+                return `
+                    <h3>Year End Results</h3>
+                    <p>Strategy: <b>${choice_name}</b></p>
+                    <p>${message}</p>
+                    <p style="font-size:20px; border:1px solid black; padding:10px;">Points earned: ${round_points}</p>
+                `;
+            },
+            choices: ['Start Next Year']
+        };
+
+        timeline.push(leaderboard_trial);
+        timeline.push(feedback_trial);
+    }
+
+    // --- SAVE DATA ---
+    timeline.push({
+        type: jsPsychHtmlButtonResponse,
+        stimulus: "Saving simulation data...",
+        choices: [],
+        on_load: function() {
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                body: JSON.stringify({
+                    subject_id: subject_id,
+                    final_score: total_score,
+                    final_ai_health: ai_reliability,
+                    timestamp: new Date().toISOString()
+                })
+            }).then(() => jsPsych.finishTrial());
+        }
+    });
+
+    jsPsych.run(timeline);
+
+</script>
+</html>
